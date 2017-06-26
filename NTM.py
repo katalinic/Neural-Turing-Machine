@@ -1,4 +1,8 @@
 
+# coding: utf-8
+
+# In[14]:
+
 import numpy as np
 import Controller
 import AddressMech
@@ -6,12 +10,19 @@ import MemOps
 import Util
 
 
+# In[2]:
 
 class NTM(object):
     
-    def __init__(self, H=100, N=128, M=20, shift_parameter_size=3, learning_rate=-1e-4):
-    
+    def __init__(self, H=100, N=128, M=20, shift_parameter_size=3, learning_rate=1e-4, decay_param=0.99):
+#         self.ReadHead = AddressMech.ReadHead()
+#         self.WriteHead = AddressMech.WriteHead()
+        
+#         self.ReadHeadParamGen = Controller.read_head_parameters()
+#         self.WriteHeadParamGen = Controller.write_head_parameters()
+        
         self.learning_rate = learning_rate
+        self.decay_param = decay_param
         
         '''
         Xavier weight initialisation
@@ -52,8 +63,11 @@ class NTM(object):
         self.w_r_h = np.random.randn(H,M)/np.sqrt(H+M)
         self.b_r_h = np.random.randn(H)/np.sqrt(H)
         
-        self.d_w_r_h = np.zeros((H,M))
-        self.d_b_r_h = np.zeros(H)
+        self.s_w_r_h = np.zeros((H,M))
+        self.s_b_r_h = np.zeros(H)
+        
+        self.rms_w_r_h = np.zeros_like(self.w_r_h)
+        self.rms_b_r_h = np.zeros_like(self.b_r_h)
         
         '''
         Memory unit 
@@ -90,7 +104,7 @@ class NTM(object):
         '''
         Deltas for everything else
         '''
-        self.delta_read_weights = {
+        self.s_read_weights = {
             'w_r_k' : 0,
             'w_r_beta': 0,
             'w_r_g': 0,
@@ -103,7 +117,37 @@ class NTM(object):
             'b_r_gamma': 0,
         }
 
-        self.delta_write_weights = {
+        self.s_write_weights = {
+            'w_w_k' : 0,
+            'w_w_beta': 0,
+            'w_w_g': 0,
+            'w_w_s': 0,
+            'w_w_gamma': 0,
+            'w_w_e': 0,
+            'w_w_a': 0,
+            'b_w_k' : 0,
+            'b_w_beta': 0,
+            'b_w_g': 0,
+            'b_w_s': 0,
+            'b_w_gamma': 0,
+            'b_w_e': 0,
+            'b_w_a': 0
+        }
+        
+        self.rms_read_weights = {
+            'w_r_k' : 0,
+            'w_r_beta': 0,
+            'w_r_g': 0,
+            'w_r_s': 0,
+            'w_r_gamma': 0,
+            'b_r_k' : 0,
+            'b_r_beta': 0,
+            'b_r_g': 0,
+            'b_r_s': 0,
+            'b_r_gamma': 0,
+        }
+
+        self.rms_write_weights = {
             'w_w_k' : 0,
             'w_w_beta': 0,
             'w_w_g': 0,
@@ -173,8 +217,8 @@ class NTM(object):
         d_read_to_controller_input, d_read_to_controller_bias = Util.Add.back_pass(d_controller)
         delta_w_r_h, d_read = Util.MatVecMul.back_pass(d_read_to_controller_input, self.w_r_h, self.prev_read[-1])
         
-        self.d_w_r_h += delta_w_r_h
-        self.d_b_r_h += d_read_to_controller_bias
+        self.s_w_r_h += delta_w_r_h
+        self.s_b_r_h += d_read_to_controller_bias
         
     
         #Backprop read head
@@ -185,29 +229,28 @@ class NTM(object):
         self.delta_prev_read = np.vstack((self.delta_prev_read,d_read))
                                          
         self.delta_prev_read_weight = np.vstack((self.delta_prev_read_weight,d_prev_read_weight))
-       
-        
+
         delta_read_weight_dict, d_controller_read = self.ReadHeadParamGen.back_pass(d_read_params, 
                                                                 self.controller_time[-1],self.read_weight_dict)
                                          
         
-        for key in self.delta_read_weights.keys():
-            self.delta_read_weights[key] += delta_read_weight_dict[key]
+        for key in self.s_read_weights.keys():
+            self.s_read_weights[key] += delta_read_weight_dict[key]
         
         #Backprop write head
         d_M_write, d_prev_write_weight, d_write_params = self.WriteHead.back_pass(
-            d_M_read+self.d_Memory[-1], self.delta_prev_write_weight[-1], self.Memory[-1], 
+            self.d_Memory[-1], self.delta_prev_write_weight[-1], self.Memory[-1], 
             self.prev_write_weight[-1],self.Write_Parameters[-1])
         
         self.delta_prev_write_weight = np.vstack((self.delta_prev_write_weight,d_prev_write_weight))
         
-        self.d_Memory = np.append(self.d_Memory,d_M_write[np.newaxis,:,:],axis=0)
+        self.d_Memory = np.append(self.d_Memory,d_M_write[np.newaxis,:,:]+d_M_read[np.newaxis,:,:],axis=0)
         
         delta_write_weight_dict, d_controller_write = self.WriteHeadParamGen.back_pass(
             d_write_params, self.controller_time[-1],self.write_weight_dict)
                  
-        for key in self.delta_write_weights.keys():
-            self.delta_write_weights[key] += delta_write_weight_dict[key]
+        for key in self.s_write_weights.keys():
+            self.s_write_weights[key] += delta_write_weight_dict[key]
         
         self.delta_controller_read = np.vstack((self.delta_controller_read,d_controller_read))
         self.delta_controller_write = np.vstack((self.delta_controller_write,d_controller_write))
@@ -236,16 +279,30 @@ class NTM(object):
         
         Initial run will be without RMSProp or Momentum
         
+        Use of dictionaries should be avoided; try re-writing to instead just stack numpy arrays and sum..
         '''
         
-        self.w_r_h += self.learning_rate*self.d_w_r_h
-        self.b_r_h += self.learning_rate*self.d_b_r_h
+        self.s_w_r_h = Util.Clip(self.s_w_r_h)
+        self.s_b_r_h = Util.Clip(self.s_b_r_h)
         
+        self.rms_w_r_h = self.decay_param*self.rms_w_r_h+(1-self.decay_param)*self.s_w_r_h**2
+        self.rms_b_r_h = self.decay_param*self.rms_b_r_h+(1-self.decay_param)*self.s_b_r_h**2
+        
+        self.w_r_h -= self.learning_rate*self.s_w_r_h/np.sqrt(self.rms_w_r_h+1e-4)
+        self.b_r_h -= self.learning_rate*self.s_b_r_h/np.sqrt(self.rms_b_r_h+1e-4)
+        
+        
+        for key in self.s_read_weights.keys():
+            self.rms_read_weights[key] = self.decay_param*self.rms_read_weights[key] +             (1-self.decay_param)*Util.Clip(self.s_read_weights[key])**2
+        
+        for key in self.s_write_weights.keys():
+            self.rms_write_weights[key] = self.decay_param*self.rms_write_weights[key] +             (1-self.decay_param)*Util.Clip(self.s_write_weights[key])**2
+            
         for key in self.read_weight_dict.keys():
-            self.read_weight_dict[key] += self.learning_rate*self.delta_read_weights[key]
+            self.read_weight_dict[key] -=             self.learning_rate*Util.Clip(self.s_read_weights[key])/(np.sqrt(self.rms_read_weights[key])+1e-4)
         
         for key in self.write_weight_dict.keys():
-            self.write_weight_dict[key] += self.learning_rate*self.delta_write_weights[key]
+            self.write_weight_dict[key] -=             self.learning_rate*Util.Clip(self.s_write_weights[key])/(np.sqrt(self.rms_write_weights[key])+1e-4)
         
         return None
     
@@ -253,8 +310,8 @@ class NTM(object):
         self.Memory = np.zeros((1,N,M))+0.1
         self.d_Memory = np.zeros((1,N,M))
         
-        self.d_w_r_h = np.zeros((H,M))
-        self.d_b_r_h = np.zeros(H)
+        self.s_w_r_h = np.zeros((H,M))
+        self.s_b_r_h = np.zeros(H)
         
         self.prev_read = np.zeros((1,M))
         self.prev_write_weight = np.zeros((1,N))
@@ -270,7 +327,7 @@ class NTM(object):
         self.delta_controller_write = np.zeros((1,H))
         self.delta_controller_read = np.zeros((1,H))
         
-        self.delta_read_weights = {
+        self.s_read_weights = {
             'w_r_k' : 0,
             'w_r_beta': 0,
             'w_r_g': 0,
@@ -283,7 +340,7 @@ class NTM(object):
             'b_r_gamma': 0,
         }
 
-        self.delta_write_weights = {
+        self.s_write_weights = {
             'w_w_k' : 0,
             'w_w_beta': 0,
             'w_w_g': 0,
