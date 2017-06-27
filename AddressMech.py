@@ -1,9 +1,14 @@
 
+# coding: utf-8
+
+# In[1]:
 
 import numpy as np
 import Util
 import MemOps
 
+
+# In[2]:
 
 #Addressing mechanisms
 class cosineSim(object):
@@ -36,6 +41,7 @@ class cosineSim(object):
         return dkw, dmw
 
 
+# In[3]:
 
 class ContentAddress(object):
     
@@ -64,6 +70,7 @@ class ContentAddress(object):
         return d_k, d_M, d_beta
 
 
+# In[4]:
 
 class Interpolation(object):
     
@@ -87,53 +94,37 @@ class Interpolation(object):
         return dw_c, dw_prev, dg
 
 
+# In[5]:
+
+# In[ ]:
 
 class Convolution_shift(object):
-    
-    ''' 
-    Arbitrarily chosen tolerance for comparison in back_pass()
-    Since for a weight of fixed size the S matrix will have constant layout, the process could be
-    done upon initialisation and only indices cached.
-    '''
-    tol = 1e-8
     
     def __init__(self):
         pass
     
-    def conv_shift_mat(l, s):
-    
-        fl = l//len(s)
-        rem = np.mod(l,len(s))
-        col = np.hstack((np.tile(s, fl) ,s[:rem]))
-        col1 = np.hstack((col[2:],col[2:4]))
-        col2 = np.hstack((col[1:],col[2:3]))
-
-        S_init = np.column_stack((col,col1,col2))
-
-        S = np.column_stack((np.tile(S_init,fl),S_init[:,:rem]))
-
-        return S
-
     def fwd_pass(self, wg, s):
         
-        self.S = Convolution_shift.conv_shift_mat(len(wg),s)
+        left = np.hstack((wg[1:],wg[0]))
+        right = np.hstack((wg[-1],wg[:-1]))
+        self.convW = np.vstack((left,wg,right)).T
         
-        return np.dot(self.S,wg)
+        return np.dot(self.convW,s)
     
     def back_pass(self, dw_s, wg, s):
         
-        dw_g = np.dot(self.S.T,dw_s)
+        ds = np.dot(self.convW.T,dw_s)
+
+        left_back = np.hstack((dw_s[-1],dw_s[:-1]))
+        right_back = np.hstack((dw_s[1:],dw_s[0]))
+        final_back = np.vstack((left_back,dw_s,right_back)).T
+
+        dw_g = np.dot(final_back,s)
         
-        jac = np.outer(dw_s,wg)
-        
-        ds = np.zeros(len(s))
-        
-        
-        for i in range(len(s)):
-            ds[i] = np.sum(jac[np.where(abs(self.S-s[i])<Convolution_shift.tol)])
-            
         return dw_g, ds
 
+
+# In[6]:
 
 class Sharpening(object):
     
@@ -165,6 +156,7 @@ class Sharpening(object):
         return d_gamma, d_ws
 
 
+# In[7]:
 
 class AddressMechanism(object):
     
@@ -199,6 +191,7 @@ class AddressMechanism(object):
         return d_M, d_w_prev, d_k, d_beta, d_g, d_s, d_gamma
 
 
+# In[17]:
 
 class ReadHead(object):
     
@@ -235,6 +228,7 @@ class ReadHead(object):
         return d_M_a+d_M_r, d_w_prev, d_read_params
 
 
+# In[18]:
 
 class WriteHead(object):
     
