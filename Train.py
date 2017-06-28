@@ -62,12 +62,8 @@ for ep in range(10000):
         cntlr_input = Util.MatVecMul.fwd_pass(w_I,input_sequence[:,k])
         cntlr_input_wbias = Util.Add.fwd_pass(cntlr_input, b_I)
         
-        #can add tanh here - to use it need to store cntlr_input_wbias through time
-        tanh_cntlr_input_wbias.append(np.tanh(cntlr_input_wbias))
-        
 #         cntlr_out = NTMach.fwd_pass(cntlr_input_wbias)
-#         controller_inst.append(NTMach.fwd_pass(cntlr_input_wbias))
-        controller_inst.append(NTMach.fwd_pass(tanh_cntlr_input_wbias[k]))
+        controller_inst.append(NTMach.fwd_pass(cntlr_input_wbias))
         
 #         y_input = Util.MatVecMul.fwd_pass(w_O,cntlr_out)
         y_input = Util.MatVecMul.fwd_pass(w_O,controller_inst[k])
@@ -96,10 +92,7 @@ for ep in range(10000):
         s_w_O += d_w_O
         s_b_O += d_b_O
         
-        d_tanh_cntlr_out = d_cntlr_out*(1-np.tanh(tanh_cntlr_input_wbias[q])**2)
-        
-#         d_cntlr_input_wbias = NTMach.back_pass(d_cntlr_out)
-        d_cntlr_input_wbias = NTMach.back_pass(d_tanh_cntlr_out)
+        d_cntlr_input_wbias = NTMach.back_pass(d_cntlr_out)
 
         d_cntlr_input, d_b_I = Util.Add.back_pass(d_cntlr_input_wbias)
 
