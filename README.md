@@ -4,3 +4,5 @@ NumPy implementation of the Neural Turing Machine https://arxiv.org/pdf/1410.540
 Supports a single read and write head, for the Copy task. 
 
 The controller is a simple feedforward neural network. 
+
+Written using Python 3.6+ and NumPy 1.11+.
