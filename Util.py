@@ -1,8 +1,4 @@
-
-
 import numpy as np
-
-
 
 class MatVecMul(object):
     
@@ -22,8 +18,6 @@ class MatVecMul(object):
         
         return dW, dv
 
-
-
 class VecMatMul(object):
     
     @staticmethod
@@ -42,8 +36,6 @@ class VecMatMul(object):
         
         return dv, dW
 
-
-
 class OuterProduct(object):
     
     @staticmethod
@@ -60,8 +52,6 @@ class OuterProduct(object):
         
         return dU, dV
 
-
-
 class Negate(object):
     
     @staticmethod
@@ -73,7 +63,6 @@ class Negate(object):
     def back_pass(dU):
         
         return -dU
-
 
 class HadamardProduct(object):
     
@@ -87,7 +76,6 @@ class HadamardProduct(object):
         
         return dO*V, dO*U
 
-
 class Add(object):
   
     @staticmethod
@@ -99,8 +87,6 @@ class Add(object):
     def back_pass(dC):
         
         return dC, dC
-
-
 
 class Sigmoid(object):
     
@@ -121,48 +107,60 @@ class Sigmoid(object):
         
         return dz*Sigmoid.sigmoid(self.Q)*(1-Sigmoid.sigmoid(self.Q))
 
-
-
-class ReLU(object):
-    
-    def __init__(self):
-        pass
-    
-    def ReLU_unit(z):
-        
-        zr = z.copy()
-        
-        zr[zr<0] = 0
-        
-        return zr
-    
-    def fwd_pass(self, z):
-        
-        self.z = z
-
-        return ReLU.ReLU_unit(self.z)
-    
-    def back_pass(self, dz):
-
-        if isinstance(dz, float):
-            
-            dz_relu = 0 if self.z<=0 else dz
-        
-        else:
-            dz_relu = dz.copy()
-
-            dz_relu[self.z<=0] = 0
-        
-        return dz_relu
-
-
-
 def Clip(arr):
     '''
     Hard-coded lower and upper bounds as per paper
     '''
     return np.clip(arr,-10,10)
 
+def f_softmax(z):
+
+    m = np.max(z)
+
+    z_exp = np.exp(z-m)
+
+    norm = np.sum(z_exp)
+
+    return z_exp/norm
+
+def f_sigmoid(z):
+
+    return 1.0/(1.0+np.exp(-z))
+
+class Softplus(object):
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def sigmoid(z):
+
+        return 1.0/(1.0+np.exp(-z))
+
+    def fwd_pass(self, z):
+        
+        self.z=z
+
+        return np.log(1+np.exp(z))
+
+    def back_pass(self, dz):
+
+        return dz*Softplus.sigmoid(self.z)
+
+class Tanh(object):
+
+    def __init__(self):
+        pass
+
+    def fwd_pass(self, z):
+
+        self.tz = np.tanh(z)
+
+        return self.tz
+
+    def back_pass(self, dz):
+
+        return dz*(1-self.tz**2)
 
 class Softmax(object):
     
@@ -170,12 +168,13 @@ class Softmax(object):
         pass
         
     def fwd_pass(self,z):
+        m = np.max(z)
+
+        z_exp = np.exp(z-m)
         
-        self.z_exp = np.exp(z)
+        norm = np.sum(z_exp)
         
-        self.norm = np.sum(self.z_exp)
-        
-        self.y = self.z_exp/self.norm
+        self.y = z_exp/norm
         
         return self.y
     
@@ -203,8 +202,6 @@ class ScalarMul(object):
         
         return da, dz
 
-
-#Sequence generation
 def Copy_seq_gen(vector_size=8, seq_length=1):
 
     copy_seq = np.random.randint(2,size=(vector_size,seq_length))
@@ -220,13 +217,12 @@ def Copy_seq_gen(vector_size=8, seq_length=1):
     
     return input_sequence, output_sequence
 
-
 class CrossEntropyLossSigmoid(object):
     
     @staticmethod
     def fwd_pass(Y,t):
 
-        loss = -np.sum(t*np.log(Y)+(1-t)*np.log(1-Y))
+        loss = np.sum(np.nan_to_num(-t*np.log(Y)-(1-t)*np.log(1-Y)))
     
         return loss
     
@@ -234,4 +230,3 @@ class CrossEntropyLossSigmoid(object):
     def back_pass(Y,t):
 
         return (Y-t)/(Y*(1-Y))
-

@@ -1,16 +1,7 @@
-
-# coding: utf-8
-
-# In[1]:
-
 import numpy as np
 import Util
 import MemOps
 
-
-# In[2]:
-
-#Addressing mechanisms
 class cosineSim(object):
     
     def __init__(self):
@@ -24,24 +15,21 @@ class cosineSim(object):
         
         self.M_norm = np.sqrt(np.sum(M**2,axis=1))
         
-        self.cos_sim = self.dot/(self.k_norm*self.M_norm)
+        self.cos_sim = self.dot/(self.k_norm*self.M_norm+1e-3)
         
         return self.cos_sim
     
     def back_pass(self, dw, k, M):
         
-        dk = M/(self.k_norm*self.M_norm.reshape(-1,1))-np.outer(self.cos_sim,k)/self.k_norm**2
+        dk = M/(self.k_norm*self.M_norm.reshape(-1,1)+1e-3)-np.outer(self.cos_sim,k)/self.k_norm**2
 
         dkw = np.dot(dk.T,dw)
         
-        dm = k/(self.k_norm*self.M_norm.reshape(-1,1))-self.cos_sim.reshape(-1,1)*M/((self.M_norm**2).reshape(-1,1))
+        dm = k/(self.k_norm*self.M_norm.reshape(-1,1)+1e-3)-self.cos_sim.reshape(-1,1)*M/((self.M_norm**2).reshape(-1,1)+1e-3)
         
         dmw = dw.reshape(-1,1)*dm
         
         return dkw, dmw
-
-
-# In[3]:
 
 class ContentAddress(object):
     
@@ -69,9 +57,6 @@ class ContentAddress(object):
         
         return d_k, d_M, d_beta
 
-
-# In[4]:
-
 class Interpolation(object):
     
     def __init__(self):
@@ -92,11 +77,6 @@ class Interpolation(object):
         dg = np.sum(dw_g*(w_c-w_prev))
         
         return dw_c, dw_prev, dg
-
-
-# In[5]:
-
-# In[ ]:
 
 class Convolution_shift(object):
     
@@ -122,9 +102,6 @@ class Convolution_shift(object):
         dw_g = np.dot(final_back,s)
         
         return dw_g, ds
-
-
-# In[6]:
 
 class Sharpening(object):
     
@@ -154,9 +131,6 @@ class Sharpening(object):
         d_gamma = np.sum(d_g*d_wgamma)
         
         return d_gamma, d_ws
-
-
-# In[7]:
 
 class AddressMechanism(object):
     
@@ -189,9 +163,6 @@ class AddressMechanism(object):
         d_k, d_M, d_beta = self.CA.back_pass(d_w_ca, k, M, beta)
         
         return d_M, d_w_prev, d_k, d_beta, d_g, d_s, d_gamma
-
-
-# In[17]:
 
 class ReadHead(object):
     
@@ -226,9 +197,6 @@ class ReadHead(object):
         }
         
         return d_M_a+d_M_r, d_w_prev, d_read_params
-
-
-# In[18]:
 
 class WriteHead(object):
     
@@ -265,4 +233,3 @@ class WriteHead(object):
         }
         
         return d_M_writing+d_M_a, d_w_prev, d_write_params
-

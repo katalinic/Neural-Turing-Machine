@@ -1,17 +1,14 @@
-
 import numpy as np
 import Util
-
-
 
 class read_head_parameters(object):
     
     def __init__(self):
-        self.k_act = Util.ReLU()
-        self.beta_act = Util.ReLU()
+        self.k_act = Util.Tanh()
+        self.beta_act = Util.Softplus()
         self.g_act = Util.Sigmoid()
         self.s_act = Util.Softmax()
-        self.gamma_act = Util.ReLU()
+        self.gamma_act = Util.Softplus()
     
     def fwd_pass(self, cntlr, read_weights):
         
@@ -92,7 +89,7 @@ class read_head_parameters(object):
                 'b_r_gamma': d_gamma_bias 
             }
         
-        d_controller = d_cntlr_k+d_cntlr_beta+d_cntlr_g+d_cntlr_s+d_cntlr_gamma
+        d_controller = d_cntlr_k+d_cntlr_beta.ravel()+d_cntlr_g+d_cntlr_s+d_cntlr_gamma.ravel()
         
         return deltas_dict, d_controller
 
@@ -100,13 +97,13 @@ class read_head_parameters(object):
 class write_head_parameters(object):
     
     def __init__(self):
-        self.k_act = Util.ReLU()
-        self.beta_act = Util.ReLU()
+        self.k_act = Util.Tanh()
+        self.beta_act = Util.Softplus()
         self.g_act = Util.Sigmoid()
         self.s_act = Util.Softmax()
-        self.gamma_act = Util.ReLU()
+        self.gamma_act = Util.Softplus()
         self.e_act = Util.Sigmoid()
-        self.a_act = Util.ReLU()
+        self.a_act = Util.Tanh()
     
     def fwd_pass(self, cntlr, write_weights):
         
@@ -212,8 +209,7 @@ class write_head_parameters(object):
                 'b_w_e': d_e_bias,
                 'b_w_a': d_a_bias
             }
-        
-        d_controller = d_cntlr_k+d_cntlr_beta+d_cntlr_g+d_cntlr_s+d_cntlr_gamma+d_cntlr_e + d_cntlr_a
+
+        d_controller = d_cntlr_k+d_cntlr_beta.ravel()+d_cntlr_g+d_cntlr_s+d_cntlr_gamma.ravel()+d_cntlr_e + d_cntlr_a
         
         return deltas_dict, d_controller
-
