@@ -1,5 +1,5 @@
 import numpy as np
-import NTM2
+import NTM
 import Util
 
 def train(sequence_length=5, max_eps=50000, convergence_criterion=1e-3):
@@ -18,7 +18,7 @@ def train(sequence_length=5, max_eps=50000, convergence_criterion=1e-3):
     b_I = np.zeros(cntlr)
     b_O = np.zeros(O)
 
-    NTMach = NTM2.NTM()
+    NTMach = NTM.NTM()
 
     loss_seq = []
 
