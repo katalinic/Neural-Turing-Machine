@@ -72,8 +72,10 @@ class NTM(object):
         Initialising previous values as necessary.
         '''
         self.prev_read = np.zeros((1,M))
-        self.prev_write_weight = Util.f_softmax(np.random.rand(1,N))
-        self.prev_read_weight = Util.f_softmax(np.random.rand(1,N))
+        self.prev_write_weight = np.zeros((1,N))
+        self.prev_read_weight = np.zeros((1,N))
+	self.prev_write_weight[0,0]=1
+	self.prev_read_weight[0,0]=1
 
         '''
         To store dicts of read and write head parameters through time
@@ -383,8 +385,10 @@ class NTM(object):
         self.s_b_r_h = np.zeros(H)
         
         self.prev_read = np.zeros((1,M))
-        self.prev_write_weight = Util.f_softmax(np.random.rand(1,N))
-        self.prev_read_weight = Util.f_softmax(np.random.rand(1,N))
+        self.prev_write_weight = np.zeros((1,N))
+        self.prev_read_weight = np.zeros((1,N))
+	self.prev_write_weight[0,0]=1
+	self.prev_read_weight[0,0]=1
 
         self.Read_Parameters = []
         self.Write_Parameters = []
